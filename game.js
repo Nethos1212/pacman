@@ -208,6 +208,20 @@ function ensureConnectivity(maze) {
     }
 }
 
+// Function to get random valid position
+function getRandomPosition() {
+    let x, y;
+    do {
+        x = Math.floor(Math.random() * MAZE_WIDTH);
+        y = Math.floor(Math.random() * MAZE_HEIGHT);
+    } while (maze[y][x] === 1); // Keep trying until we find a non-wall position
+    
+    return {
+        x: x * CELL_SIZE,
+        y: y * CELL_SIZE
+    };
+}
+
 // Initialize game objects with proper positions
 let pacman = {
     x: Math.floor(MAZE_WIDTH / 2) * CELL_SIZE,
@@ -219,24 +233,30 @@ let pacman = {
 
 let ghosts = [
     {
-        x: (MAZE_WIDTH/2 - 1) * CELL_SIZE,
-        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
-        direction: DIRECTIONS.RIGHT,
-        color: COLORS.GHOST[0]
+        color: '#FF0000',  // Red ghost
+        personality: 'aggressive'  // Directly chases Pacman
     },
     {
-        x: (MAZE_WIDTH/2) * CELL_SIZE,
-        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
-        direction: DIRECTIONS.UP,
-        color: COLORS.GHOST[1]
+        color: '#FFB8FF',  // Pink ghost
+        personality: 'ambush'  // Tries to get ahead of Pacman
     },
     {
-        x: (MAZE_WIDTH/2 + 1) * CELL_SIZE,
-        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
-        direction: DIRECTIONS.LEFT,
-        color: COLORS.GHOST[2]
+        color: '#00FFFF',  // Cyan ghost
+        personality: 'random'  // Moves randomly
+    },
+    {
+        color: '#FFB852',  // Orange ghost
+        personality: 'patrol'  // Patrols between corners
     }
-];
+].map(ghost => {
+    const pos = getRandomPosition();
+    return {
+        ...ghost,
+        x: pos.x,
+        y: pos.y,
+        direction: DIRECTIONS[Object.keys(DIRECTIONS)[Math.floor(Math.random() * 4)]]
+    };
+});
 
 // Function to reset positions
 function resetPositions() {
@@ -412,36 +432,80 @@ function getOppositeDirection(direction) {
     if (direction === DIRECTIONS.DOWN) return DIRECTIONS.UP;
 }
 
-// Update ghost movement
+// Update ghost movement with different behaviors
 function updateGhosts(deltaTime) {
     ghosts.forEach(ghost => {
         const nextX = ghost.x + ghost.direction.x * GHOST_SPEED * deltaTime;
         const nextY = ghost.y + ghost.direction.y * GHOST_SPEED * deltaTime;
         
-        // Check if ghost can move in current direction
+        // Get available directions at current position
+        const availableDirections = getAvailableDirections(ghost.x, ghost.y);
+        
+        // Choose direction based on personality
+        if (!canMove(nextX, nextY) || Math.random() < 0.1) {  // 10% chance to change direction even if path is clear
+            let newDirection;
+            
+            switch(ghost.personality) {
+                case 'aggressive':
+                    // Try to move towards Pacman
+                    const dx = pacman.x - ghost.x;
+                    const dy = pacman.y - ghost.y;
+                    newDirection = availableDirections.reduce((best, dir) => {
+                        const newDx = dx * dir.x;
+                        const newDy = dy * dir.y;
+                        return (newDx + newDy > best.score) ? 
+                            {dir, score: newDx + newDy} : best;
+                    }, {dir: availableDirections[0], score: -Infinity}).dir;
+                    break;
+                    
+                case 'ambush':
+                    // Try to get ahead of Pacman
+                    const aheadX = pacman.x + pacman.direction.x * CELL_SIZE * 4;
+                    const aheadY = pacman.y + pacman.direction.y * CELL_SIZE * 4;
+                    newDirection = availableDirections.reduce((best, dir) => {
+                        const dist = Math.abs((ghost.x + dir.x * CELL_SIZE) - aheadX) + 
+                                   Math.abs((ghost.y + dir.y * CELL_SIZE) - aheadY);
+                        return (dist < best.score) ? 
+                            {dir, score: dist} : best;
+                    }, {dir: availableDirections[0], score: Infinity}).dir;
+                    break;
+                    
+                case 'patrol':
+                    // Move between corners
+                    const corners = [
+                        {x: CELL_SIZE, y: CELL_SIZE},
+                        {x: (MAZE_WIDTH-2) * CELL_SIZE, y: CELL_SIZE},
+                        {x: CELL_SIZE, y: (MAZE_HEIGHT-2) * CELL_SIZE},
+                        {x: (MAZE_WIDTH-2) * CELL_SIZE, y: (MAZE_HEIGHT-2) * CELL_SIZE}
+                    ];
+                    const nearestCorner = corners.reduce((best, corner) => {
+                        const dist = Math.abs(ghost.x - corner.x) + Math.abs(ghost.y - corner.y);
+                        return (dist < best.score) ? 
+                            {corner, score: dist} : best;
+                    }, {corner: corners[0], score: Infinity}).corner;
+                    
+                    newDirection = availableDirections.reduce((best, dir) => {
+                        const dist = Math.abs((ghost.x + dir.x * CELL_SIZE) - nearestCorner.x) + 
+                                   Math.abs((ghost.y + dir.y * CELL_SIZE) - nearestCorner.y);
+                        return (dist < best.score) ? 
+                            {dir, score: dist} : best;
+                    }, {dir: availableDirections[0], score: Infinity}).dir;
+                    break;
+                    
+                case 'random':
+                default:
+                    // Choose random direction
+                    newDirection = availableDirections[Math.floor(Math.random() * availableDirections.length)];
+                    break;
+            }
+            
+            ghost.direction = newDirection;
+        }
+        
+        // Move ghost
         if (canMove(nextX, nextY)) {
             ghost.x = nextX;
             ghost.y = nextY;
-            
-            // Randomly change direction at intersections (20% chance)
-            if (Math.random() < 0.2) {
-                const availableDirections = getAvailableDirections(ghost.x, ghost.y);
-                if (availableDirections.length > 1) {
-                    // Remove opposite direction to prevent immediate backtracking
-                    const oppositeDir = getOppositeDirection(ghost.direction);
-                    const filteredDirections = availableDirections.filter(dir => 
-                        dir !== oppositeDir || availableDirections.length === 1);
-                    
-                    // Choose random direction
-                    ghost.direction = filteredDirections[Math.floor(Math.random() * filteredDirections.length)];
-                }
-            }
-        } else {
-            // Hit a wall - choose random valid direction
-            const availableDirections = getAvailableDirections(ghost.x, ghost.y);
-            if (availableDirections.length > 0) {
-                ghost.direction = availableDirections[Math.floor(Math.random() * availableDirections.length)];
-            }
         }
         
         // Handle screen wrapping
