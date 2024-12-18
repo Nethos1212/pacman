@@ -490,9 +490,10 @@ function drawPacman() {
     // Draw Pacman body
     ctx.beginPath();
     const mouthAngle = 0.2 * Math.PI * Math.sin(pacman.mouthOpen);
-    ctx.arc(0, 0, PACMAN_SIZE/2, mouthAngle, 2 * Math.PI - mouthAngle);
+    ctx.arc(0, 0, PACMAN_SIZE/2, mouthAngle, 2 * Math.PI - mouthAngle, true); 
     ctx.lineTo(0, 0);
-    ctx.fillStyle = COLORS.PACMAN;
+    ctx.closePath();
+    ctx.fillStyle = '#FFFF00';  
     ctx.fill();
     
     ctx.restore();
