@@ -9,8 +9,8 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 0.25;
-const PACMAN_SPEED = 0.5;
+const GHOST_SPEED = 0.0625; // Reduced by 4x (from 0.25)
+const PACMAN_SPEED = 0.125; // Reduced by 4x (from 0.5)
 
 // Add frame rate control
 const FPS = 60;
@@ -19,7 +19,7 @@ let lastFrameTime = 0;
 
 // Colors
 const COLORS = {
-    WALL: '#2121DE',
+    WALL: '#0000FF', // Classic Pacman blue
     DOT: '#FFB897',
     POWER_DOT: '#FFB897',
     PACMAN: '#FFFF00',
@@ -42,31 +42,27 @@ const DIRECTIONS = {
 
 // Maze layout (0: empty, 1: wall, 2: dot, 3: power dot)
 const maze = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2,1],
-    [1,3,1,1,2,1,1,1,2,1,2,1,1,1,2,1,1,3,1],
-    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
-    [1,2,1,1,2,1,2,1,1,1,1,1,2,1,2,1,1,2,1],
-    [1,2,2,2,2,1,2,2,2,1,2,2,2,1,2,2,2,2,1],
-    [1,1,1,1,2,1,1,1,0,1,0,1,1,1,2,1,1,1,1],
-    [1,1,1,1,2,1,0,0,0,0,0,0,0,1,2,1,1,1,1],
-    [1,1,1,1,2,1,0,1,1,0,1,1,0,1,2,1,1,1,1],
-    [0,0,0,0,2,0,0,1,0,0,0,1,0,0,2,0,0,0,0],
-    [1,1,1,1,2,1,0,1,1,1,1,1,0,1,2,1,1,1,1],
-    [1,1,1,1,2,1,0,0,0,0,0,0,0,1,2,1,1,1,1],
-    [1,1,1,1,2,1,0,1,1,1,1,1,0,1,2,1,1,1,1],
-    [1,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2,1],
-    [1,2,1,1,2,1,1,1,2,1,2,1,1,1,2,1,1,2,1],
-    [1,3,2,1,2,2,2,2,2,2,2,2,2,2,2,1,2,3,1],
-    [1,1,2,1,2,1,2,1,1,1,1,1,2,1,2,1,2,1,1],
-    [1,2,2,2,2,1,2,2,2,1,2,2,2,1,2,2,2,2,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,2,1,1,1,1,1,2,1,1,2,1],
+    [1,3,2,2,2,2,2,2,2,2,2,2,2,3,1],
+    [1,2,1,1,2,1,2,1,1,1,2,1,1,2,1],
+    [1,2,2,2,2,1,2,2,2,1,2,2,2,2,1],
+    [1,1,1,1,2,1,1,0,1,1,2,1,1,1,1],
+    [0,0,0,1,2,1,0,0,0,1,2,1,0,0,0],
+    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
+    [0,0,0,0,2,0,0,0,0,0,2,0,0,0,0],
+    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
+    [0,0,0,1,2,1,0,0,0,1,2,1,0,0,0],
+    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 ];
 
 // Game objects
 let pacman = {
-    x: 9 * CELL_SIZE,
-    y: 14 * CELL_SIZE,
+    x: 7 * CELL_SIZE,  // Center of the maze
+    y: 11 * CELL_SIZE, // Lower part of the maze
     direction: DIRECTIONS.RIGHT,
     nextDirection: DIRECTIONS.RIGHT,
     mouthOpen: 0,
@@ -74,9 +70,9 @@ let pacman = {
 };
 
 let ghosts = [
-    { x: 8 * CELL_SIZE, y: 9 * CELL_SIZE, direction: DIRECTIONS.RIGHT, color: COLORS.GHOST[0] },
-    { x: 9 * CELL_SIZE, y: 9 * CELL_SIZE, direction: DIRECTIONS.UP, color: COLORS.GHOST[1] },
-    { x: 10 * CELL_SIZE, y: 9 * CELL_SIZE, direction: DIRECTIONS.LEFT, color: COLORS.GHOST[2] }
+    { x: 6 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.RIGHT, color: COLORS.GHOST[0] }, // Red ghost
+    { x: 7 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.UP, color: COLORS.GHOST[1] },    // Pink ghost
+    { x: 8 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.LEFT, color: COLORS.GHOST[2] }   // Cyan ghost
 ];
 
 // Initialize Telegram Game
@@ -244,8 +240,8 @@ function updateGhosts() {
         if (distance < CELL_SIZE/2) {
             if (powerMode) {
                 // Reset ghost position
-                ghost.x = 9 * CELL_SIZE;
-                ghost.y = 9 * CELL_SIZE;
+                ghost.x = 7 * CELL_SIZE;
+                ghost.y = 7 * CELL_SIZE;
                 score += 200;
                 scoreElement.textContent = `Score: ${score}`;
             } else {
