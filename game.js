@@ -9,7 +9,7 @@ const MAZE_HEIGHT = 15;
 const FPS = 60;
 const FRAME_INTERVAL = 1000 / FPS;
 const GHOST_SPEED = 40.0;   // Increased ghost speed
-const PACMAN_SPEED = 60.0;  // Increased pacman speed to maintain ratio
+const PACMAN_SPEED = 120.0;  // Increased pacman speed to maintain ratio
 
 // Initialize variables
 let CELL_SIZE = 20;  // Initial value, will be recalculated
@@ -214,8 +214,7 @@ let pacman = {
     y: (MAZE_HEIGHT - 4) * CELL_SIZE,
     direction: DIRECTIONS.RIGHT,
     nextDirection: DIRECTIONS.RIGHT,
-    mouthOpen: 0,
-    mouthDir: 1
+    mouthOpen: 0
 };
 
 let ghosts = [
@@ -476,24 +475,30 @@ function drawMaze() {
 
 function drawPacman() {
     ctx.save();
+    
+    // Move to Pacman's position
     ctx.translate(pacman.x + CELL_SIZE/2, pacman.y + CELL_SIZE/2);
     
     // Rotate based on direction
-    const angle = Math.atan2(pacman.direction.y, pacman.direction.x);
+    let angle = 0;
+    if (pacman.direction === DIRECTIONS.UP) angle = -Math.PI/2;
+    if (pacman.direction === DIRECTIONS.DOWN) angle = Math.PI/2;
+    if (pacman.direction === DIRECTIONS.LEFT) angle = Math.PI;
+    if (pacman.direction === DIRECTIONS.RIGHT) angle = 0;
     ctx.rotate(angle);
     
+    // Draw Pacman body
     ctx.beginPath();
-    ctx.arc(0, 0, PACMAN_SIZE/2, pacman.mouthOpen * Math.PI/6, (2 - pacman.mouthOpen) * Math.PI/6, false);
+    const mouthAngle = 0.2 * Math.PI * Math.sin(pacman.mouthOpen);
+    ctx.arc(0, 0, PACMAN_SIZE/2, mouthAngle, 2 * Math.PI - mouthAngle);
     ctx.lineTo(0, 0);
     ctx.fillStyle = COLORS.PACMAN;
     ctx.fill();
+    
     ctx.restore();
     
     // Update mouth animation
-    pacman.mouthOpen += 0.2 * pacman.mouthDir;
-    if (pacman.mouthOpen >= 1 || pacman.mouthOpen <= 0) {
-        pacman.mouthDir *= -1;
-    }
+    pacman.mouthOpen += 0.3;
 }
 
 function drawGhosts() {
