@@ -4,19 +4,38 @@ const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
 // Game constants
-const CELL_SIZE = 20;
-const PACMAN_SIZE = CELL_SIZE - 2;
-const GHOST_SIZE = CELL_SIZE - 2;
-const DOT_SIZE = 4;
-const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 1.0;    // Increased by 4x (from 0.25)
-const PACMAN_SPEED = 2.0;   // Increased by 4x (from 0.5)
-
-// Maze dimensions
+let CELL_SIZE; // Will be calculated based on screen size
+const PACMAN_SIZE; // Will be calculated based on cell size
+const GHOST_SIZE; // Will be calculated based on cell size
+const DOT_SIZE; // Will be calculated based on cell size
+const POWER_DOT_SIZE; // Will be calculated based on cell size
 const MAZE_WIDTH = 15;
 const MAZE_HEIGHT = 15;
 
-// Add frame rate control
+// Calculate cell size based on screen size
+function calculateCellSize() {
+    const maxWidth = window.innerWidth * 0.95; // 95% of screen width
+    const maxHeight = window.innerHeight * 0.85; // 85% of screen height
+    
+    // Calculate cell size that would fit both width and height
+    const cellByWidth = Math.floor(maxWidth / MAZE_WIDTH);
+    const cellByHeight = Math.floor(maxHeight / MAZE_HEIGHT);
+    
+    // Use the smaller value to ensure game fits on screen
+    CELL_SIZE = Math.min(cellByWidth, cellByHeight);
+    
+    // Update dependent sizes
+    PACMAN_SIZE = CELL_SIZE - 2;
+    GHOST_SIZE = CELL_SIZE - 2;
+    DOT_SIZE = Math.max(4, Math.floor(CELL_SIZE / 5));
+    POWER_DOT_SIZE = Math.max(8, Math.floor(CELL_SIZE / 2.5));
+}
+
+// Game speeds
+const GHOST_SPEED = 4.0;
+const PACMAN_SPEED = 6.0;
+
+// Maze dimensions
 const FPS = 60;
 const FRAME_INTERVAL = 1000 / FPS;
 let lastFrameTime = 0;
@@ -239,11 +258,36 @@ try {
 
 // Set canvas size
 function resizeCanvas() {
+    calculateCellSize(); // Recalculate cell size
     const mazeWidth = MAZE_WIDTH * CELL_SIZE;
     const mazeHeight = MAZE_HEIGHT * CELL_SIZE;
     canvas.width = mazeWidth;
     canvas.height = mazeHeight;
+    
+    // Center the canvas on screen
+    canvas.style.position = 'absolute';
+    canvas.style.left = '50%';
+    canvas.style.top = '50%';
+    canvas.style.transform = 'translate(-50%, -50%)';
 }
+
+// Add window resize listener
+let prevCellSize;
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    // Adjust positions based on new cell size
+    pacman.x = (pacman.x / prevCellSize) * CELL_SIZE;
+    pacman.y = (pacman.y / prevCellSize) * CELL_SIZE;
+    ghosts.forEach(ghost => {
+        ghost.x = (ghost.x / prevCellSize) * CELL_SIZE;
+        ghost.y = (ghost.y / prevCellSize) * CELL_SIZE;
+    });
+    prevCellSize = CELL_SIZE;
+});
+
+// Initial setup
+calculateCellSize();
+prevCellSize = CELL_SIZE;
 resizeCanvas();
 
 // Input handling
