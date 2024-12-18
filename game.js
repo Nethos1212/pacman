@@ -9,8 +9,12 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 0.0625; // Reduced by 4x (from 0.25)
-const PACMAN_SPEED = 0.125; // Reduced by 4x (from 0.5)
+const GHOST_SPEED = 0.25;
+const PACMAN_SPEED = 0.5;
+
+// Maze dimensions
+const MAZE_WIDTH = 15;
+const MAZE_HEIGHT = 15;
 
 // Add frame rate control
 const FPS = 60;
@@ -19,7 +23,7 @@ let lastFrameTime = 0;
 
 // Colors
 const COLORS = {
-    WALL: '#0000FF', // Classic Pacman blue
+    WALL: '#0000FF',
     DOT: '#FFB897',
     POWER_DOT: '#FFB897',
     PACMAN: '#FFFF00',
@@ -40,29 +44,180 @@ const DIRECTIONS = {
     RIGHT: { x: 1, y: 0 }
 };
 
-// Maze layout (0: empty, 1: wall, 2: dot, 3: power dot)
-const maze = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
-    [1,2,1,1,2,1,1,1,1,1,2,1,1,2,1],
-    [1,3,2,2,2,2,2,2,2,2,2,2,2,3,1],
-    [1,2,1,1,2,1,2,1,1,1,2,1,1,2,1],
-    [1,2,2,2,2,1,2,2,2,1,2,2,2,2,1],
-    [1,1,1,1,2,1,1,0,1,1,2,1,1,1,1],
-    [0,0,0,1,2,1,0,0,0,1,2,1,0,0,0],
-    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
-    [0,0,0,0,2,0,0,0,0,0,2,0,0,0,0],
-    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
-    [0,0,0,1,2,1,0,0,0,1,2,1,0,0,0],
-    [1,1,1,1,2,1,1,1,1,1,2,1,1,1,1],
-    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-];
+// Maze generation functions
+function generateMaze() {
+    // Initialize maze with walls
+    const maze = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(1));
+    
+    // Create a list of potential walls to remove
+    const walls = [];
+    
+    // Start from the center
+    const startY = Math.floor(MAZE_HEIGHT / 2);
+    const startX = Math.floor(MAZE_WIDTH / 2);
+    maze[startY][startX] = 2; // Make it a dot
+    
+    // Add surrounding walls to the list
+    addWalls(startX, startY, walls);
+    
+    // Process walls until none remain
+    while (walls.length > 0) {
+        // Pick a random wall
+        const wallIndex = Math.floor(Math.random() * walls.length);
+        const [x, y, fromX, fromY] = walls[wallIndex];
+        walls.splice(wallIndex, 1);
+        
+        // Check if the cell on the opposite side of the wall is still a wall
+        const toX = x + (x - fromX);
+        const toY = y + (y - fromY);
+        
+        if (isValidCell(toX, toY) && maze[toY][toX] === 1) {
+            // Create a passage
+            maze[y][x] = 2; // Make it a dot
+            maze[toY][toX] = 2; // Make the next cell a dot too
+            
+            // Add new walls to the list
+            addWalls(toX, toY, walls);
+        }
+    }
+    
+    // Ensure ghost house area
+    const ghostHouseY = Math.floor(MAZE_HEIGHT / 2);
+    const ghostHouseX = Math.floor(MAZE_WIDTH / 2);
+    
+    // Create ghost house
+    for (let y = ghostHouseY - 1; y <= ghostHouseY + 1; y++) {
+        for (let x = ghostHouseX - 2; x <= ghostHouseX + 2; x++) {
+            maze[y][x] = y === ghostHouseY ? 0 : 1;
+        }
+    }
+    
+    // Add power dots in corners
+    const margin = 2;
+    maze[margin][margin] = 3;
+    maze[margin][MAZE_WIDTH - margin - 1] = 3;
+    maze[MAZE_HEIGHT - margin - 1][margin] = 3;
+    maze[MAZE_HEIGHT - margin - 1][MAZE_WIDTH - margin - 1] = 3;
+    
+    // Ensure outer walls
+    for (let x = 0; x < MAZE_WIDTH; x++) {
+        maze[0][x] = 1;
+        maze[MAZE_HEIGHT - 1][x] = 1;
+    }
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+        maze[y][0] = 1;
+        maze[y][MAZE_WIDTH - 1] = 1;
+    }
+    
+    // Add some random tunnels
+    const tunnelY = Math.floor(MAZE_HEIGHT / 2);
+    for (let x = 0; x < MAZE_WIDTH; x++) {
+        if (Math.random() < 0.3) {
+            maze[tunnelY][x] = 2;
+        }
+    }
+    
+    // Ensure paths are connected
+    ensureConnectivity(maze);
+    
+    return maze;
+}
+
+function addWalls(x, y, walls) {
+    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    
+    for (const [dx, dy] of directions) {
+        const newX = x + dx * 2;
+        const newY = y + dy * 2;
+        
+        if (isValidCell(newX, newY)) {
+            walls.push([x + dx, y + dy, x, y]);
+        }
+    }
+}
+
+function isValidCell(x, y) {
+    return x >= 0 && x < MAZE_WIDTH && y >= 0 && y < MAZE_HEIGHT;
+}
+
+function ensureConnectivity(maze) {
+    const visited = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(false));
+    const stack = [];
+    let dotCount = 0;
+    
+    // Start from a dot
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+        for (let x = 0; x < MAZE_WIDTH; x++) {
+            if (maze[y][x] === 2) {
+                stack.push([x, y]);
+                visited[y][x] = true;
+                dotCount++;
+                break;
+            }
+        }
+        if (stack.length > 0) break;
+    }
+    
+    // DFS to check connectivity
+    while (stack.length > 0) {
+        const [x, y] = stack.pop();
+        
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        for (const [dx, dy] of directions) {
+            const newX = x + dx;
+            const newY = y + dy;
+            
+            if (isValidCell(newX, newY) && !visited[newY][newX] && maze[newY][newX] !== 1) {
+                stack.push([newX, newY]);
+                visited[newY][newX] = true;
+                if (maze[newY][newX] === 2) dotCount++;
+            }
+        }
+    }
+    
+    // If not all dots are connected, add paths
+    for (let y = 1; y < MAZE_HEIGHT - 1; y++) {
+        for (let x = 1; x < MAZE_WIDTH - 1; x++) {
+            if (maze[y][x] === 2 && !visited[y][x]) {
+                // Connect to nearest visited cell
+                let connected = false;
+                const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                
+                for (const [dx, dy] of directions) {
+                    let nx = x + dx;
+                    let ny = y + dy;
+                    
+                    while (isValidCell(nx, ny)) {
+                        if (visited[ny][nx]) {
+                            // Create path
+                            let px = x;
+                            let py = y;
+                            while (px !== nx || py !== ny) {
+                                maze[py][px] = 2;
+                                visited[py][px] = true;
+                                px += Math.sign(nx - px);
+                                py += Math.sign(ny - py);
+                            }
+                            connected = true;
+                            break;
+                        }
+                        nx += dx;
+                        ny += dy;
+                    }
+                    if (connected) break;
+                }
+            }
+        }
+    }
+}
+
+// Initialize maze
+let maze = generateMaze();
 
 // Game objects
 let pacman = {
-    x: 7 * CELL_SIZE,  // Center of the maze
-    y: 11 * CELL_SIZE, // Lower part of the maze
+    x: Math.floor(MAZE_WIDTH / 2) * CELL_SIZE,
+    y: (MAZE_HEIGHT - 4) * CELL_SIZE,
     direction: DIRECTIONS.RIGHT,
     nextDirection: DIRECTIONS.RIGHT,
     mouthOpen: 0,
@@ -70,9 +225,9 @@ let pacman = {
 };
 
 let ghosts = [
-    { x: 6 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.RIGHT, color: COLORS.GHOST[0] }, // Red ghost
-    { x: 7 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.UP, color: COLORS.GHOST[1] },    // Pink ghost
-    { x: 8 * CELL_SIZE, y: 7 * CELL_SIZE, direction: DIRECTIONS.LEFT, color: COLORS.GHOST[2] }   // Cyan ghost
+    { x: (MAZE_WIDTH/2 - 1) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.RIGHT, color: COLORS.GHOST[0] },
+    { x: (MAZE_WIDTH/2) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.UP, color: COLORS.GHOST[1] },
+    { x: (MAZE_WIDTH/2 + 1) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.LEFT, color: COLORS.GHOST[2] }
 ];
 
 // Initialize Telegram Game
@@ -84,8 +239,8 @@ try {
 
 // Set canvas size
 function resizeCanvas() {
-    const mazeWidth = maze[0].length * CELL_SIZE;
-    const mazeHeight = maze.length * CELL_SIZE;
+    const mazeWidth = MAZE_WIDTH * CELL_SIZE;
+    const mazeHeight = MAZE_HEIGHT * CELL_SIZE;
     canvas.width = mazeWidth;
     canvas.height = mazeHeight;
 }
@@ -121,8 +276,8 @@ document.addEventListener('keydown', handleKeydown);
 function canMove(x, y) {
     const gridX = Math.floor((x + CELL_SIZE/2) / CELL_SIZE);
     const gridY = Math.floor((y + CELL_SIZE/2) / CELL_SIZE);
-    return gridX >= 0 && gridX < maze[0].length && 
-           gridY >= 0 && gridY < maze.length && 
+    return gridX >= 0 && gridX < MAZE_WIDTH && 
+           gridY >= 0 && gridY < MAZE_HEIGHT && 
            maze[gridY][gridX] !== 1;
 }
 
@@ -176,7 +331,7 @@ function updatePacman() {
     const gridX = Math.floor((pacman.x + CELL_SIZE/2) / CELL_SIZE);
     const gridY = Math.floor((pacman.y + CELL_SIZE/2) / CELL_SIZE);
     
-    if (gridX >= 0 && gridX < maze[0].length && gridY >= 0 && gridY < maze.length) {
+    if (gridX >= 0 && gridX < MAZE_WIDTH && gridY >= 0 && gridY < MAZE_HEIGHT) {
         if (maze[gridY][gridX] === 2) {
             maze[gridY][gridX] = 0;
             score += 10;
@@ -240,8 +395,8 @@ function updateGhosts() {
         if (distance < CELL_SIZE/2) {
             if (powerMode) {
                 // Reset ghost position
-                ghost.x = 7 * CELL_SIZE;
-                ghost.y = 7 * CELL_SIZE;
+                ghost.x = (MAZE_WIDTH/2 - 1) * CELL_SIZE;
+                ghost.y = Math.floor(MAZE_HEIGHT/2) * CELL_SIZE;
                 score += 200;
                 scoreElement.textContent = `Score: ${score}`;
             } else {
@@ -252,8 +407,8 @@ function updateGhosts() {
 }
 
 function drawMaze() {
-    for (let y = 0; y < maze.length; y++) {
-        for (let x = 0; x < maze[y].length; x++) {
+    for (let y = 0; y < MAZE_HEIGHT; y++) {
+        for (let x = 0; x < MAZE_WIDTH; x++) {
             if (maze[y][x] === 1) {
                 ctx.fillStyle = COLORS.WALL;
                 ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
