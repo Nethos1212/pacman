@@ -211,7 +211,7 @@ function ensureConnectivity(maze) {
 // Initialize maze
 let maze = generateMaze();
 
-// Game objects
+// Initialize game objects with proper positions
 let pacman = {
     x: Math.floor(MAZE_WIDTH / 2) * CELL_SIZE,
     y: (MAZE_HEIGHT - 4) * CELL_SIZE,
@@ -222,10 +222,40 @@ let pacman = {
 };
 
 let ghosts = [
-    { x: (MAZE_WIDTH/2 - 1) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.RIGHT, color: COLORS.GHOST[0] },
-    { x: (MAZE_WIDTH/2) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.UP, color: COLORS.GHOST[1] },
-    { x: (MAZE_WIDTH/2 + 1) * CELL_SIZE, y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE, direction: DIRECTIONS.LEFT, color: COLORS.GHOST[2] }
+    {
+        x: (MAZE_WIDTH/2 - 1) * CELL_SIZE,
+        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
+        direction: DIRECTIONS.RIGHT,
+        color: COLORS.GHOST[0]
+    },
+    {
+        x: (MAZE_WIDTH/2) * CELL_SIZE,
+        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
+        direction: DIRECTIONS.UP,
+        color: COLORS.GHOST[1]
+    },
+    {
+        x: (MAZE_WIDTH/2 + 1) * CELL_SIZE,
+        y: Math.floor(MAZE_HEIGHT/2) * CELL_SIZE,
+        direction: DIRECTIONS.LEFT,
+        color: COLORS.GHOST[2]
+    }
 ];
+
+// Function to reset positions
+function resetPositions() {
+    pacman.x = Math.floor(MAZE_WIDTH / 2) * CELL_SIZE;
+    pacman.y = (MAZE_HEIGHT - 4) * CELL_SIZE;
+    pacman.direction = DIRECTIONS.RIGHT;
+    pacman.nextDirection = DIRECTIONS.RIGHT;
+
+    ghosts[0].x = (MAZE_WIDTH/2 - 1) * CELL_SIZE;
+    ghosts[0].y = Math.floor(MAZE_HEIGHT/2) * CELL_SIZE;
+    ghosts[1].x = (MAZE_WIDTH/2) * CELL_SIZE;
+    ghosts[1].y = Math.floor(MAZE_HEIGHT/2) * CELL_SIZE;
+    ghosts[2].x = (MAZE_WIDTH/2 + 1) * CELL_SIZE;
+    ghosts[2].y = Math.floor(MAZE_HEIGHT/2) * CELL_SIZE;
+}
 
 // Initialize Telegram Game
 try {
@@ -251,15 +281,17 @@ function resizeCanvas() {
 
 // Add window resize listener
 window.addEventListener('resize', () => {
+    const oldCellSize = CELL_SIZE;
     resizeCanvas();
-    // Adjust positions based on new cell size
-    pacman.x = (pacman.x / prevCellSize) * CELL_SIZE;
-    pacman.y = (pacman.y / prevCellSize) * CELL_SIZE;
+    const scale = CELL_SIZE / oldCellSize;
+    
+    // Scale all positions
+    pacman.x *= scale;
+    pacman.y *= scale;
     ghosts.forEach(ghost => {
-        ghost.x = (ghost.x / prevCellSize) * CELL_SIZE;
-        ghost.y = (ghost.y / prevCellSize) * CELL_SIZE;
+        ghost.x *= scale;
+        ghost.y *= scale;
     });
-    prevCellSize = CELL_SIZE;
 });
 
 // Initial setup
@@ -344,9 +376,10 @@ function updatePacman() {
     }
 
     // Update mouth animation
-    pacman.mouthOpen += 0.1 * pacman.mouthDir;
-    if (pacman.mouthOpen >= 0.5) pacman.mouthDir = -1;
-    if (pacman.mouthOpen <= 0) pacman.mouthDir = 1;
+    pacman.mouthOpen += 0.2 * pacman.mouthDir;
+    if (pacman.mouthOpen >= 1 || pacman.mouthOpen <= 0) {
+        pacman.mouthDir *= -1;
+    }
 
     // Check for dots
     const gridX = Math.floor((pacman.x + CELL_SIZE/2) / CELL_SIZE);
@@ -462,49 +495,59 @@ function drawPacman() {
     const angle = Math.atan2(pacman.direction.y, pacman.direction.x);
     ctx.rotate(angle);
     
-    ctx.fillStyle = COLORS.PACMAN;
     ctx.beginPath();
-    ctx.arc(0, 0, PACMAN_SIZE/2, pacman.mouthOpen * Math.PI, (2 - pacman.mouthOpen) * Math.PI);
+    ctx.arc(0, 0, PACMAN_SIZE/2, pacman.mouthOpen * Math.PI/6, (2 - pacman.mouthOpen) * Math.PI/6, false);
     ctx.lineTo(0, 0);
+    ctx.fillStyle = COLORS.PACMAN;
     ctx.fill();
     ctx.restore();
+    
+    // Update mouth animation
+    pacman.mouthOpen += 0.2 * pacman.mouthDir;
+    if (pacman.mouthOpen >= 1 || pacman.mouthOpen <= 0) {
+        pacman.mouthDir *= -1;
+    }
 }
 
 function drawGhosts() {
     ghosts.forEach(ghost => {
-        ctx.fillStyle = powerMode ? '#0000FF' : ghost.color;
-        
-        // Ghost body
         ctx.beginPath();
-        ctx.arc(ghost.x + CELL_SIZE/2, ghost.y + CELL_SIZE/2 - 2, GHOST_SIZE/2, Math.PI, 0, false);
-        ctx.lineTo(ghost.x + CELL_SIZE, ghost.y + CELL_SIZE/2 + 6);
+        ctx.arc(ghost.x + CELL_SIZE/2, ghost.y + CELL_SIZE/2, GHOST_SIZE/2, 0, Math.PI, true);
         
-        // Ghost waves
-        for(let i = 0; i < 3; i++) {
-            const waveWidth = GHOST_SIZE/3;
+        // Draw ghost body
+        const bottomY = ghost.y + CELL_SIZE/2 + GHOST_SIZE/2;
+        ctx.lineTo(ghost.x, bottomY);
+        
+        // Draw wavy bottom
+        const waveWidth = GHOST_SIZE/3;
+        for (let i = 0; i < 3; i++) {
             ctx.quadraticCurveTo(
-                ghost.x + CELL_SIZE - (i * waveWidth) - waveWidth/2,
-                ghost.y + CELL_SIZE/2 + 2,
-                ghost.x + CELL_SIZE - ((i + 1) * waveWidth),
-                ghost.y + CELL_SIZE/2 + 6
+                ghost.x + waveWidth * (i + 0.5),
+                bottomY + 5,
+                ghost.x + waveWidth * (i + 1),
+                bottomY
             );
         }
         
-        ctx.lineTo(ghost.x, ghost.y + CELL_SIZE/2 + 6);
+        ctx.lineTo(ghost.x + GHOST_SIZE, ghost.y + CELL_SIZE/2);
+        ctx.fillStyle = powerMode ? '#2121ff' : ghost.color;
         ctx.fill();
         
-        // Eyes
-        ctx.fillStyle = '#FFF';
+        // Draw eyes
+        const eyeX = ghost.x + CELL_SIZE/2;
+        const eyeY = ghost.y + CELL_SIZE/2;
+        const eyeSize = GHOST_SIZE/6;
+        
+        // Left eye
         ctx.beginPath();
-        ctx.arc(ghost.x + 6, ghost.y + CELL_SIZE/2 - 2, 3, 0, Math.PI * 2);
-        ctx.arc(ghost.x + 14, ghost.y + CELL_SIZE/2 - 2, 3, 0, Math.PI * 2);
+        ctx.arc(eyeX - eyeSize*2, eyeY - eyeSize, eyeSize, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
         ctx.fill();
         
-        // Pupils
-        ctx.fillStyle = '#000';
+        // Right eye
         ctx.beginPath();
-        ctx.arc(ghost.x + 6, ghost.y + CELL_SIZE/2 - 2, 1.5, 0, Math.PI * 2);
-        ctx.arc(ghost.x + 14, ghost.y + CELL_SIZE/2 - 2, 1.5, 0, Math.PI * 2);
+        ctx.arc(eyeX + eyeSize*2, eyeY - eyeSize, eyeSize, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
         ctx.fill();
     });
 }
