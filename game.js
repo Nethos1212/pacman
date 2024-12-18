@@ -208,9 +208,6 @@ function ensureConnectivity(maze) {
     }
 }
 
-// Initialize maze
-let maze = generateMaze();
-
 // Initialize game objects with proper positions
 let pacman = {
     x: Math.floor(MAZE_WIDTH / 2) * CELL_SIZE,
@@ -294,10 +291,17 @@ window.addEventListener('resize', () => {
     });
 });
 
-// Initial setup
-calculateCellSize();
-prevCellSize = CELL_SIZE;
-resizeCanvas();
+// Initialize game
+function initGame() {
+    calculateCellSize();
+    resizeCanvas();
+    resetPositions();
+    maze = generateMaze();
+    score = 0;
+    gameOver = false;
+    powerMode = false;
+    if (powerModeTimer) clearTimeout(powerModeTimer);
+}
 
 // Input handling
 function handleKeydown(e) {
@@ -590,6 +594,7 @@ function gameLoop(timestamp) {
 }
 
 // Start the game
+initGame();
 gameLoop();
 
 // Calculate cell size based on screen size
