@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pacman - Telegram Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            background: #000;
+            touch-action: none;
+        }
+        #score {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+        }
+        #mobileControls {
+            position: fixed;
+            bottom: 20px;
+            display: none;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            #mobileControls {
+                display: flex;
+            }
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="mobileControls">
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="upBtn">↑</button>
+        <button class="control-btn" id="downBtn">↓</button>
+        <button class="control-btn" id="rightBtn">→</button>
+    </div>
+    <script src="https://telegram.org/js/games.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
