@@ -4,41 +4,25 @@ const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
 // Game constants
-let CELL_SIZE; // Will be calculated based on screen size
-let PACMAN_SIZE; // Will be calculated based on cell size
-let GHOST_SIZE; // Will be calculated based on cell size
-let DOT_SIZE; // Will be calculated based on cell size
-let POWER_DOT_SIZE; // Will be calculated based on cell size
 const MAZE_WIDTH = 15;
 const MAZE_HEIGHT = 15;
-
-// Calculate cell size based on screen size
-function calculateCellSize() {
-    const maxWidth = window.innerWidth * 0.95; // 95% of screen width
-    const maxHeight = window.innerHeight * 0.85; // 85% of screen height
-    
-    // Calculate cell size that would fit both width and height
-    const cellByWidth = Math.floor(maxWidth / MAZE_WIDTH);
-    const cellByHeight = Math.floor(maxHeight / MAZE_HEIGHT);
-    
-    // Use the smaller value to ensure game fits on screen
-    CELL_SIZE = Math.min(cellByWidth, cellByHeight);
-    
-    // Update dependent sizes
-    PACMAN_SIZE = CELL_SIZE - 2;
-    GHOST_SIZE = CELL_SIZE - 2;
-    DOT_SIZE = Math.max(4, Math.floor(CELL_SIZE / 5));
-    POWER_DOT_SIZE = Math.max(8, Math.floor(CELL_SIZE / 2.5));
-}
-
-// Game speeds
-const GHOST_SPEED = 12.0;   // Increased from 4.0 to 12.0 (3x)
-const PACMAN_SPEED = 18.0;  // Increased from 6.0 to 18.0 (3x)
-
-// Maze dimensions
 const FPS = 60;
 const FRAME_INTERVAL = 1000 / FPS;
+const GHOST_SPEED = 12.0;   // Fast ghost speed
+const PACMAN_SPEED = 18.0;  // Fast pacman speed
+
+// Initialize variables
+let CELL_SIZE = 20;  // Initial value, will be recalculated
+let PACMAN_SIZE = CELL_SIZE - 2;
+let GHOST_SIZE = CELL_SIZE - 2;
+let DOT_SIZE = 4;
+let POWER_DOT_SIZE = 8;
 let lastFrameTime = 0;
+let prevCellSize = CELL_SIZE;
+let score = 0;
+let gameOver = false;
+let powerMode = false;
+let powerModeTimer = null;
 
 // Colors
 const COLORS = {
@@ -48,12 +32,6 @@ const COLORS = {
     PACMAN: '#FFFF00',
     GHOST: ['#FF0000', '#FFB8FF', '#00FFFF', '#FFB852']
 };
-
-// Game state
-let score = 0;
-let gameOver = false;
-let powerMode = false;
-let powerModeTimer = null;
 
 // Direction constants
 const DIRECTIONS = {
@@ -272,7 +250,6 @@ function resizeCanvas() {
 }
 
 // Add window resize listener
-let prevCellSize;
 window.addEventListener('resize', () => {
     resizeCanvas();
     // Adjust positions based on new cell size
@@ -571,3 +548,22 @@ function gameLoop(timestamp) {
 
 // Start the game
 gameLoop();
+
+// Calculate cell size based on screen size
+function calculateCellSize() {
+    const maxWidth = window.innerWidth * 0.95; // 95% of screen width
+    const maxHeight = window.innerHeight * 0.85; // 85% of screen height
+    
+    // Calculate cell size that would fit both width and height
+    const cellByWidth = Math.floor(maxWidth / MAZE_WIDTH);
+    const cellByHeight = Math.floor(maxHeight / MAZE_HEIGHT);
+    
+    // Use the smaller value to ensure game fits on screen
+    CELL_SIZE = Math.min(cellByWidth, cellByHeight);
+    
+    // Update dependent sizes
+    PACMAN_SIZE = CELL_SIZE - 2;
+    GHOST_SIZE = CELL_SIZE - 2;
+    DOT_SIZE = Math.max(4, Math.floor(CELL_SIZE / 5));
+    POWER_DOT_SIZE = Math.max(8, Math.floor(CELL_SIZE / 2.5));
+}
