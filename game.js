@@ -5,10 +5,10 @@ const scoreElement = document.getElementById('score');
 
 // Game constants
 let CELL_SIZE; // Will be calculated based on screen size
-const PACMAN_SIZE; // Will be calculated based on cell size
-const GHOST_SIZE; // Will be calculated based on cell size
-const DOT_SIZE; // Will be calculated based on cell size
-const POWER_DOT_SIZE; // Will be calculated based on cell size
+let PACMAN_SIZE; // Will be calculated based on cell size
+let GHOST_SIZE; // Will be calculated based on cell size
+let DOT_SIZE; // Will be calculated based on cell size
+let POWER_DOT_SIZE; // Will be calculated based on cell size
 const MAZE_WIDTH = 15;
 const MAZE_HEIGHT = 15;
 
@@ -32,8 +32,8 @@ function calculateCellSize() {
 }
 
 // Game speeds
-const GHOST_SPEED = 4.0;
-const PACMAN_SPEED = 6.0;
+const GHOST_SPEED = 12.0;   // Increased from 4.0 to 12.0 (3x)
+const PACMAN_SPEED = 18.0;  // Increased from 6.0 to 18.0 (3x)
 
 // Maze dimensions
 const FPS = 60;
