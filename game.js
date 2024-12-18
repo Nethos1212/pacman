@@ -9,8 +9,13 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 2;
-const PACMAN_SPEED = 3;
+const GHOST_SPEED = 1; // Reduced from 2
+const PACMAN_SPEED = 2; // Reduced from 3
+
+// Add frame rate control
+const FPS = 60;
+const FRAME_INTERVAL = 1000 / FPS;
+let lastFrameTime = 0;
 
 // Colors
 const COLORS = {
@@ -130,8 +135,25 @@ function updatePacman() {
     const nextX = pacman.x + pacman.nextDirection.x * PACMAN_SPEED;
     const nextY = pacman.y + pacman.nextDirection.y * PACMAN_SPEED;
     
-    if (canMove(nextX, nextY)) {
+    // Get current grid position
+    const currentGridX = Math.floor(pacman.x / CELL_SIZE);
+    const currentGridY = Math.floor(pacman.y / CELL_SIZE);
+    
+    // Get next grid position
+    const nextGridX = Math.floor(nextX / CELL_SIZE);
+    const nextGridY = Math.floor(nextY / CELL_SIZE);
+    
+    // Check if we're at a grid intersection
+    const atIntersection = 
+        Math.abs((pacman.x - currentGridX * CELL_SIZE) < PACMAN_SPEED) &&
+        Math.abs((pacman.y - currentGridY * CELL_SIZE) < PACMAN_SPEED);
+    
+    // If at intersection and next direction is valid, change direction
+    if (atIntersection && canMove(nextX, nextY)) {
         pacman.direction = pacman.nextDirection;
+        // Align to grid
+        pacman.x = currentGridX * CELL_SIZE;
+        pacman.y = currentGridY * CELL_SIZE;
     }
     
     // Move in current direction
@@ -141,14 +163,18 @@ function updatePacman() {
     if (canMove(newX, newY)) {
         pacman.x = newX;
         pacman.y = newY;
+    } else {
+        // Align to grid when hitting a wall
+        pacman.x = currentGridX * CELL_SIZE;
+        pacman.y = currentGridY * CELL_SIZE;
     }
 
     // Wrap around
-    if (pacman.x < 0) pacman.x = canvas.width;
-    if (pacman.x > canvas.width) pacman.x = 0;
+    if (pacman.x < 0) pacman.x = canvas.width - CELL_SIZE;
+    if (pacman.x >= canvas.width) pacman.x = 0;
 
-    // Update mouth animation
-    pacman.mouthOpen += 0.2 * pacman.mouthDir;
+    // Update mouth animation (slower)
+    pacman.mouthOpen += 0.1 * pacman.mouthDir;
     if (pacman.mouthOpen >= 0.5) pacman.mouthDir = -1;
     if (pacman.mouthOpen <= 0) pacman.mouthDir = 1;
 
@@ -285,7 +311,14 @@ function drawGhosts() {
     });
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
+    // Control frame rate
+    if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    lastFrameTime = timestamp;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (!gameOver) {
