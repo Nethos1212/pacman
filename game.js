@@ -9,8 +9,8 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 0.25; // Reduced from 1
-const PACMAN_SPEED = 0.5; // Reduced from 2
+const GHOST_SPEED = 0.25;
+const PACMAN_SPEED = 0.5;
 
 // Add frame rate control
 const FPS = 60;
@@ -123,37 +123,36 @@ document.addEventListener('keydown', handleKeydown);
 
 // Game functions
 function canMove(x, y) {
-    const gridX = Math.floor(x / CELL_SIZE);
-    const gridY = Math.floor(y / CELL_SIZE);
+    const gridX = Math.floor((x + CELL_SIZE/2) / CELL_SIZE);
+    const gridY = Math.floor((y + CELL_SIZE/2) / CELL_SIZE);
     return gridX >= 0 && gridX < maze[0].length && 
            gridY >= 0 && gridY < maze.length && 
            maze[gridY][gridX] !== 1;
 }
 
 function updatePacman() {
-    // Try to move in the next direction if possible
-    const nextX = pacman.x + pacman.nextDirection.x * PACMAN_SPEED;
-    const nextY = pacman.y + pacman.nextDirection.y * PACMAN_SPEED;
-    
     // Get current grid position
     const currentGridX = Math.floor(pacman.x / CELL_SIZE);
     const currentGridY = Math.floor(pacman.y / CELL_SIZE);
     
-    // Get next grid position
-    const nextGridX = Math.floor(nextX / CELL_SIZE);
-    const nextGridY = Math.floor(nextY / CELL_SIZE);
+    // Calculate center position of current cell
+    const cellCenterX = currentGridX * CELL_SIZE + CELL_SIZE/2;
+    const cellCenterY = currentGridY * CELL_SIZE + CELL_SIZE/2;
     
-    // Check if we're at a grid intersection
-    const atIntersection = 
-        Math.abs((pacman.x - currentGridX * CELL_SIZE) < PACMAN_SPEED) &&
-        Math.abs((pacman.y - currentGridY * CELL_SIZE) < PACMAN_SPEED);
+    // Check if we're near the center of a cell
+    const nearCenterX = Math.abs(pacman.x + CELL_SIZE/2 - cellCenterX) < PACMAN_SPEED;
+    const nearCenterY = Math.abs(pacman.y + CELL_SIZE/2 - cellCenterY) < PACMAN_SPEED;
     
-    // If at intersection and next direction is valid, change direction
-    if (atIntersection && canMove(nextX, nextY)) {
-        pacman.direction = pacman.nextDirection;
-        // Align to grid
-        pacman.x = currentGridX * CELL_SIZE;
-        pacman.y = currentGridY * CELL_SIZE;
+    // Try to move in the next direction if possible
+    if (nearCenterX && nearCenterY) {
+        const nextX = cellCenterX - CELL_SIZE/2 + pacman.nextDirection.x * PACMAN_SPEED;
+        const nextY = cellCenterY - CELL_SIZE/2 + pacman.nextDirection.y * PACMAN_SPEED;
+        
+        if (canMove(nextX, nextY)) {
+            pacman.direction = pacman.nextDirection;
+            pacman.x = cellCenterX - CELL_SIZE/2;
+            pacman.y = cellCenterY - CELL_SIZE/2;
+        }
     }
     
     // Move in current direction
@@ -163,45 +162,70 @@ function updatePacman() {
     if (canMove(newX, newY)) {
         pacman.x = newX;
         pacman.y = newY;
-    } else {
-        // Align to grid when hitting a wall
-        pacman.x = currentGridX * CELL_SIZE;
-        pacman.y = currentGridY * CELL_SIZE;
     }
 
     // Wrap around
-    if (pacman.x < 0) pacman.x = canvas.width - CELL_SIZE;
-    if (pacman.x >= canvas.width) pacman.x = 0;
+    if (pacman.x < -CELL_SIZE) {
+        pacman.x = canvas.width;
+    } else if (pacman.x > canvas.width) {
+        pacman.x = -CELL_SIZE;
+    }
 
-    // Update mouth animation (slower)
+    // Update mouth animation
     pacman.mouthOpen += 0.1 * pacman.mouthDir;
     if (pacman.mouthOpen >= 0.5) pacman.mouthDir = -1;
     if (pacman.mouthOpen <= 0) pacman.mouthDir = 1;
 
     // Check for dots
-    const gridX = Math.floor(pacman.x / CELL_SIZE);
-    const gridY = Math.floor(pacman.y / CELL_SIZE);
+    const gridX = Math.floor((pacman.x + CELL_SIZE/2) / CELL_SIZE);
+    const gridY = Math.floor((pacman.y + CELL_SIZE/2) / CELL_SIZE);
     
-    if (maze[gridY][gridX] === 2) {
-        maze[gridY][gridX] = 0;
-        score += 10;
-        scoreElement.textContent = `Score: ${score}`;
-    } else if (maze[gridY][gridX] === 3) {
-        maze[gridY][gridX] = 0;
-        score += 50;
-        scoreElement.textContent = `Score: ${score}`;
-        powerMode = true;
-        if (powerModeTimer) clearTimeout(powerModeTimer);
-        powerModeTimer = setTimeout(() => powerMode = false, 10000);
+    if (gridX >= 0 && gridX < maze[0].length && gridY >= 0 && gridY < maze.length) {
+        if (maze[gridY][gridX] === 2) {
+            maze[gridY][gridX] = 0;
+            score += 10;
+            scoreElement.textContent = `Score: ${score}`;
+        } else if (maze[gridY][gridX] === 3) {
+            maze[gridY][gridX] = 0;
+            score += 50;
+            scoreElement.textContent = `Score: ${score}`;
+            powerMode = true;
+            if (powerModeTimer) clearTimeout(powerModeTimer);
+            powerModeTimer = setTimeout(() => powerMode = false, 10000);
+        }
     }
 }
 
 function updateGhosts() {
     ghosts.forEach(ghost => {
-        // Simple ghost AI: randomly change direction or follow pacman
-        if (Math.random() < 0.02) {
-            const directions = Object.values(DIRECTIONS);
-            ghost.direction = directions[Math.floor(Math.random() * directions.length)];
+        // Get current grid position
+        const currentGridX = Math.floor(ghost.x / CELL_SIZE);
+        const currentGridY = Math.floor(ghost.y / CELL_SIZE);
+        
+        // Calculate center position of current cell
+        const cellCenterX = currentGridX * CELL_SIZE + CELL_SIZE/2;
+        const cellCenterY = currentGridY * CELL_SIZE + CELL_SIZE/2;
+        
+        // Check if we're near the center of a cell
+        const nearCenterX = Math.abs(ghost.x + CELL_SIZE/2 - cellCenterX) < GHOST_SPEED;
+        const nearCenterY = Math.abs(ghost.y + CELL_SIZE/2 - cellCenterY) < GHOST_SPEED;
+        
+        if (nearCenterX && nearCenterY) {
+            // At intersection, decide direction
+            const possibleDirections = [];
+            for (const dir of Object.values(DIRECTIONS)) {
+                const nextX = cellCenterX - CELL_SIZE/2 + dir.x * GHOST_SPEED;
+                const nextY = cellCenterY - CELL_SIZE/2 + dir.y * GHOST_SPEED;
+                if (canMove(nextX, nextY)) {
+                    possibleDirections.push(dir);
+                }
+            }
+            
+            if (possibleDirections.length > 0) {
+                ghost.direction = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+                ghost.x = cellCenterX - CELL_SIZE/2;
+                ghost.y = cellCenterY - CELL_SIZE/2;
+            }
         }
 
         const newX = ghost.x + ghost.direction.x * GHOST_SPEED;
@@ -210,18 +234,14 @@ function updateGhosts() {
         if (canMove(newX, newY)) {
             ghost.x = newX;
             ghost.y = newY;
-        } else {
-            // If can't move, choose a new random direction
-            const directions = Object.values(DIRECTIONS);
-            ghost.direction = directions[Math.floor(Math.random() * directions.length)];
         }
 
         // Check collision with Pacman
-        const dx = ghost.x - pacman.x;
-        const dy = ghost.y - pacman.y;
+        const dx = (ghost.x + CELL_SIZE/2) - (pacman.x + CELL_SIZE/2);
+        const dy = (ghost.y + CELL_SIZE/2) - (pacman.y + CELL_SIZE/2);
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < CELL_SIZE) {
+        if (distance < CELL_SIZE/2) {
             if (powerMode) {
                 // Reset ghost position
                 ghost.x = 9 * CELL_SIZE;
