@@ -9,8 +9,8 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 1; // Reduced from 2
-const PACMAN_SPEED = 2; // Reduced from 3
+const GHOST_SPEED = 0.25; // Reduced from 1
+const PACMAN_SPEED = 0.5; // Reduced from 2
 
 // Add frame rate control
 const FPS = 60;
