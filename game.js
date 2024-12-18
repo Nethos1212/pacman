@@ -391,62 +391,68 @@ function updatePacman() {
     }
 }
 
-function updateGhosts() {
+// Get available directions at a position
+function getAvailableDirections(x, y) {
+    const directions = [];
+    const gridX = Math.floor((x + CELL_SIZE/2) / CELL_SIZE);
+    const gridY = Math.floor((y + CELL_SIZE/2) / CELL_SIZE);
+    
+    // Check each direction
+    if (gridX >= 0 && gridX < MAZE_WIDTH && gridY >= 0 && gridY < MAZE_HEIGHT) {
+        if (maze[gridY][Math.max(0, gridX - 1)] !== 1) directions.push(DIRECTIONS.LEFT);
+        if (maze[gridY][Math.min(MAZE_WIDTH - 1, gridX + 1)] !== 1) directions.push(DIRECTIONS.RIGHT);
+        if (maze[Math.max(0, gridY - 1)][gridX] !== 1) directions.push(DIRECTIONS.UP);
+        if (maze[Math.min(MAZE_HEIGHT - 1, gridY + 1)][gridX] !== 1) directions.push(DIRECTIONS.DOWN);
+    }
+    
+    return directions;
+}
+
+// Get opposite direction
+function getOppositeDirection(direction) {
+    if (direction === DIRECTIONS.LEFT) return DIRECTIONS.RIGHT;
+    if (direction === DIRECTIONS.RIGHT) return DIRECTIONS.LEFT;
+    if (direction === DIRECTIONS.UP) return DIRECTIONS.DOWN;
+    if (direction === DIRECTIONS.DOWN) return DIRECTIONS.UP;
+}
+
+// Update ghost movement
+function updateGhosts(deltaTime) {
     ghosts.forEach(ghost => {
-        // Get current grid position
-        const currentGridX = Math.floor(ghost.x / CELL_SIZE);
-        const currentGridY = Math.floor(ghost.y / CELL_SIZE);
+        const nextX = ghost.x + ghost.direction.x * GHOST_SPEED * deltaTime;
+        const nextY = ghost.y + ghost.direction.y * GHOST_SPEED * deltaTime;
         
-        // Calculate center position of current cell
-        const cellCenterX = currentGridX * CELL_SIZE + CELL_SIZE/2;
-        const cellCenterY = currentGridY * CELL_SIZE + CELL_SIZE/2;
-        
-        // Check if we're near the center of a cell
-        const nearCenterX = Math.abs(ghost.x + CELL_SIZE/2 - cellCenterX) < GHOST_SPEED;
-        const nearCenterY = Math.abs(ghost.y + CELL_SIZE/2 - cellCenterY) < GHOST_SPEED;
-        
-        if (nearCenterX && nearCenterY) {
-            // At intersection, decide direction
-            const possibleDirections = [];
-            for (const dir of Object.values(DIRECTIONS)) {
-                const nextX = cellCenterX - CELL_SIZE/2 + dir.x * GHOST_SPEED;
-                const nextY = cellCenterY - CELL_SIZE/2 + dir.y * GHOST_SPEED;
-                if (canMove(nextX, nextY)) {
-                    possibleDirections.push(dir);
+        // Check if ghost can move in current direction
+        if (canMove(nextX, nextY)) {
+            ghost.x = nextX;
+            ghost.y = nextY;
+            
+            // Randomly change direction at intersections (20% chance)
+            if (Math.random() < 0.2) {
+                const availableDirections = getAvailableDirections(ghost.x, ghost.y);
+                if (availableDirections.length > 1) {
+                    // Remove opposite direction to prevent immediate backtracking
+                    const oppositeDir = getOppositeDirection(ghost.direction);
+                    const filteredDirections = availableDirections.filter(dir => 
+                        dir !== oppositeDir || availableDirections.length === 1);
+                    
+                    // Choose random direction
+                    ghost.direction = filteredDirections[Math.floor(Math.random() * filteredDirections.length)];
                 }
             }
-            
-            if (possibleDirections.length > 0) {
-                ghost.direction = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
-                ghost.x = cellCenterX - CELL_SIZE/2;
-                ghost.y = cellCenterY - CELL_SIZE/2;
+        } else {
+            // Hit a wall - choose random valid direction
+            const availableDirections = getAvailableDirections(ghost.x, ghost.y);
+            if (availableDirections.length > 0) {
+                ghost.direction = availableDirections[Math.floor(Math.random() * availableDirections.length)];
             }
         }
-
-        const newX = ghost.x + ghost.direction.x * GHOST_SPEED;
-        const newY = ghost.y + ghost.direction.y * GHOST_SPEED;
-
-        if (canMove(newX, newY)) {
-            ghost.x = newX;
-            ghost.y = newY;
-        }
-
-        // Check collision with Pacman
-        const dx = (ghost.x + CELL_SIZE/2) - (pacman.x + CELL_SIZE/2);
-        const dy = (ghost.y + CELL_SIZE/2) - (pacman.y + CELL_SIZE/2);
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < CELL_SIZE/2) {
-            if (powerMode) {
-                // Reset ghost position
-                ghost.x = (MAZE_WIDTH/2 - 1) * CELL_SIZE;
-                ghost.y = Math.floor(MAZE_HEIGHT/2) * CELL_SIZE;
-                score += 200;
-                scoreElement.textContent = `Score: ${score}`;
-            } else {
-                gameOver = true;
-            }
-        }
+        
+        // Handle screen wrapping
+        if (ghost.x < -CELL_SIZE) ghost.x = canvas.width;
+        if (ghost.x > canvas.width) ghost.x = -CELL_SIZE;
+        if (ghost.y < -CELL_SIZE) ghost.y = canvas.height;
+        if (ghost.y > canvas.height) ghost.y = -CELL_SIZE;
     });
 }
 
@@ -538,7 +544,7 @@ function gameLoop(timestamp) {
     
     if (!gameOver) {
         updatePacman();
-        updateGhosts();
+        updateGhosts(1 / FPS); // Pass delta time
         
         drawMaze();
         drawPacman();
