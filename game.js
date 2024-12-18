@@ -8,8 +8,8 @@ const MAZE_WIDTH = 15;
 const MAZE_HEIGHT = 15;
 const FPS = 60;
 const FRAME_INTERVAL = 1000 / FPS;
-const GHOST_SPEED = 12.0;   // Fast ghost speed
-const PACMAN_SPEED = 18.0;  // Fast pacman speed
+const GHOST_SPEED = 40.0;   // Increased ghost speed
+const PACMAN_SPEED = 60.0;  // Increased pacman speed to maintain ratio
 
 // Initialize variables
 let CELL_SIZE = 20;  // Initial value, will be recalculated
@@ -307,15 +307,19 @@ function initGame() {
 function handleKeydown(e) {
     switch(e.key) {
         case 'ArrowUp':
+        case 'w':
             pacman.nextDirection = DIRECTIONS.UP;
             break;
         case 'ArrowDown':
+        case 's':
             pacman.nextDirection = DIRECTIONS.DOWN;
             break;
         case 'ArrowLeft':
+        case 'a':
             pacman.nextDirection = DIRECTIONS.LEFT;
             break;
         case 'ArrowRight':
+        case 'd':
             pacman.nextDirection = DIRECTIONS.RIGHT;
             break;
     }
@@ -338,53 +342,30 @@ function canMove(x, y) {
            maze[gridY][gridX] !== 1;
 }
 
-function updatePacman() {
-    // Get current grid position
-    const currentGridX = Math.floor(pacman.x / CELL_SIZE);
-    const currentGridY = Math.floor(pacman.y / CELL_SIZE);
+function updatePacman(deltaTime) {
+    // Check if we can move in the next direction
+    const nextX = pacman.x + pacman.nextDirection.x * PACMAN_SPEED * deltaTime;
+    const nextY = pacman.y + pacman.nextDirection.y * PACMAN_SPEED * deltaTime;
     
-    // Calculate center position of current cell
-    const cellCenterX = currentGridX * CELL_SIZE + CELL_SIZE/2;
-    const cellCenterY = currentGridY * CELL_SIZE + CELL_SIZE/2;
-    
-    // Check if we're near the center of a cell
-    const nearCenterX = Math.abs(pacman.x + CELL_SIZE/2 - cellCenterX) < PACMAN_SPEED;
-    const nearCenterY = Math.abs(pacman.y + CELL_SIZE/2 - cellCenterY) < PACMAN_SPEED;
-    
-    // Try to move in the next direction if possible
-    if (nearCenterX && nearCenterY) {
-        const nextX = cellCenterX - CELL_SIZE/2 + pacman.nextDirection.x * PACMAN_SPEED;
-        const nextY = cellCenterY - CELL_SIZE/2 + pacman.nextDirection.y * PACMAN_SPEED;
-        
-        if (canMove(nextX, nextY)) {
-            pacman.direction = pacman.nextDirection;
-            pacman.x = cellCenterX - CELL_SIZE/2;
-            pacman.y = cellCenterY - CELL_SIZE/2;
-        }
+    if (canMove(nextX, nextY)) {
+        pacman.direction = pacman.nextDirection;
     }
     
     // Move in current direction
-    const newX = pacman.x + pacman.direction.x * PACMAN_SPEED;
-    const newY = pacman.y + pacman.direction.y * PACMAN_SPEED;
+    const newX = pacman.x + pacman.direction.x * PACMAN_SPEED * deltaTime;
+    const newY = pacman.y + pacman.direction.y * PACMAN_SPEED * deltaTime;
     
     if (canMove(newX, newY)) {
         pacman.x = newX;
         pacman.y = newY;
     }
-
-    // Wrap around
-    if (pacman.x < -CELL_SIZE) {
-        pacman.x = canvas.width;
-    } else if (pacman.x > canvas.width) {
-        pacman.x = -CELL_SIZE;
-    }
-
-    // Update mouth animation
-    pacman.mouthOpen += 0.2 * pacman.mouthDir;
-    if (pacman.mouthOpen >= 1 || pacman.mouthOpen <= 0) {
-        pacman.mouthDir *= -1;
-    }
-
+    
+    // Handle screen wrapping
+    if (pacman.x < -CELL_SIZE) pacman.x = canvas.width;
+    if (pacman.x > canvas.width) pacman.x = -CELL_SIZE;
+    if (pacman.y < -CELL_SIZE) pacman.y = canvas.height;
+    if (pacman.y > canvas.height) pacman.y = -CELL_SIZE;
+    
     // Check for dots
     const gridX = Math.floor((pacman.x + CELL_SIZE/2) / CELL_SIZE);
     const gridY = Math.floor((pacman.y + CELL_SIZE/2) / CELL_SIZE);
@@ -400,7 +381,9 @@ function updatePacman() {
             scoreElement.textContent = `Score: ${score}`;
             powerMode = true;
             if (powerModeTimer) clearTimeout(powerModeTimer);
-            powerModeTimer = setTimeout(() => powerMode = false, 10000);
+            powerModeTimer = setTimeout(() => {
+                powerMode = false;
+            }, 10000);
         }
     }
 }
@@ -557,40 +540,26 @@ function drawGhosts() {
 }
 
 function gameLoop(timestamp) {
-    // Control frame rate
-    if (timestamp - lastFrameTime < FRAME_INTERVAL) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
+    const deltaTime = (timestamp - lastFrameTime) / 1000;
     lastFrameTime = timestamp;
-
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     if (!gameOver) {
-        updatePacman();
-        updateGhosts(1 / FPS); // Pass delta time
+        updatePacman(deltaTime);
+        updateGhosts(deltaTime);
         
         drawMaze();
         drawPacman();
         drawGhosts();
-        
-        requestAnimationFrame(gameLoop);
     } else {
-        // Game Over screen
         ctx.fillStyle = '#FFF';
-        ctx.font = '40px Arial';
+        ctx.font = '48px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('Game Over!', canvas.width/2, canvas.height/2);
-        ctx.font = '20px Arial';
-        ctx.fillText(`Final Score: ${score}`, canvas.width/2, canvas.height/2 + 40);
-        
-        // Report score to Telegram
-        try {
-            TelegramGameProxy.shareScore(score);
-        } catch (e) {
-            console.log('Could not share score with Telegram');
-        }
+        ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2);
     }
+    
+    requestAnimationFrame(gameLoop);
 }
 
 // Start the game
