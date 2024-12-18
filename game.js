@@ -11,6 +11,7 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.score = 0;
         this.gameOver = false;
+        this.maze = []; // Initialize maze array
         this.resizeCanvas();
         this.initGame();
         
@@ -299,12 +300,14 @@ class Ghost {
 
     reset() {
         // Random starting position in the top half of the maze
+        let x, y;
         do {
-            this.x = Math.floor(Math.random() * 28) * this.game.cellSize;
-            this.y = Math.floor(Math.random() * 14) * this.game.cellSize;
-        } while (this.game.maze[Math.floor(this.y/this.game.cellSize)]
-                                [Math.floor(this.x/this.game.cellSize)] === 1);
-        
+            x = Math.floor(Math.random() * 28);
+            y = Math.floor(Math.random() * 14);
+        } while (this.game.maze && this.game.maze[y] && this.game.maze[y][x] === 1);
+
+        this.x = x * this.game.cellSize;
+        this.y = y * this.game.cellSize;
         this.speed = 1.5;
         this.direction = 'down';
     }
