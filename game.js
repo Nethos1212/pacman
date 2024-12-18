@@ -9,8 +9,8 @@ const PACMAN_SIZE = CELL_SIZE - 2;
 const GHOST_SIZE = CELL_SIZE - 2;
 const DOT_SIZE = 4;
 const POWER_DOT_SIZE = 8;
-const GHOST_SPEED = 0.25;
-const PACMAN_SPEED = 0.5;
+const GHOST_SPEED = 1.0;    // Increased by 4x (from 0.25)
+const PACMAN_SPEED = 2.0;   // Increased by 4x (from 0.5)
 
 // Maze dimensions
 const MAZE_WIDTH = 15;
