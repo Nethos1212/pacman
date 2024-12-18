@@ -29,6 +29,7 @@ class Game {
     }
 
     initGame() {
+        this.generateMaze();
         this.pacman = new Pacman(this);
         this.ghosts = [
             new Ghost(this, 'aggressive', 0),
@@ -36,7 +37,6 @@ class Game {
             new Ghost(this, 'random', 2),
             new Ghost(this, 'patrol', 3)
         ];
-        this.generateMaze();
         this.setupControls();
         this.gameLoop();
     }
